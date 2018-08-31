@@ -7,5 +7,5 @@ Feel free to modify/use it in your projects :D
 - Network switching
 - Redesing
 
-P.s. Working example [http://explorer.volbil.com/wallet](http://explorer.volbil.com/wallet)
+P.s. Working example [http://explorer.volbil.com/wallet](http://explorer.volbil.com/wallet)  
 P.s.s This wallet heavily based on NxtChg [tswb](http://github.com/NxtChg/tsbw/), check out his awesome github!
