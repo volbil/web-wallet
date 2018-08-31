@@ -3356,12 +3356,8 @@
 				globalData.tx.fee = amountFormat($('#fee').val() == "" ? walletConfig.fee : parseFloat($('#fee').val().trim()), true)
 				var error = ""
 
-				if (globalData.tx.fee == 0) {
-					globalData.tx.fee = 
-					console.log(globalData.tx.fee)
-				}
-
 				// Errors
+				if ((globalData.balance.confirmed - globalData.balance.unconfirmed) < globalData.tx.amount + globalData.tx.fee) error = messages.error["not-enough-funds"]
 				if (globalData.tx.destination == "" || backend.decode_address(globalData.tx.destination) === false) error = messages.error["not-valid-address"]
 				if (globalData.tx.destination === globalData.keys.address) error = messages.error["same-address"]
 				if (isNaN(globalData.tx.amount) || globalData.tx.amount <= 0) error = messages.error["not-valid-amount"]
@@ -3390,7 +3386,7 @@
 					showMessage(messages.tx["loading-utxo"])
 					getUtxoForAmount(address, requiredAmount).then(function(utxos) {
 						if (utxos.error) {
-							showMessage(utxos.data.error.code + ": " + utxos.data.error.message)
+							showMessage(messages.error["not-enough-funds"])
 							switchScreen("send")
 						} else {
 							showMessage(messages.tx["generating"])
