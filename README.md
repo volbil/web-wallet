@@ -4,7 +4,6 @@ Nice and simple web wallet based on slightly modified [ElectrumX](https://github
 Feel free to modify/use it in your projects :D
 
 ## TO DO
-- Transaction broadcasting using POST
 - (Signature must be zero for failed CHECK(MULTI)SIG operation) bug fix
 - Network switching
 - Redesing
