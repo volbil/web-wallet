@@ -14,20 +14,20 @@
 
 		<script>
 			// Config
+			// var walletConfig = {
+			// 	"title": "Wallet",
+			// 	"api": "https://volbil.com/mbc/api/",
+			// 	"name": "Main Network (MBC)",
+			// 	"ticker": "MBC",
+			// 	"paper": "http://microbitcoinorg.github.io/paper",
+			// 	"decimals": 4,
+			// 	"fee": 0.0010,
+			// 	"bytes": {
+			// 		"standard": 0x1A,
+			// 		"multisig": 0x33
+			// 	}
+			// }
 			var walletConfig = {
-				"title": "Wallet",
-				"api": "http://volbil.com/mbc/api/",
-				"name": "Main Network (MBC)",
-				"ticker": "MBC",
-				"paper": "http://microbitcoinorg.github.io/paper",
-				"decimals": 4,
-				"fee": 0.0010,
-				"bytes": {
-					"standard": 0x1A,
-					"multisig": 0x33
-				}
-			}
-			/* var walletConfig = {
 				"title": "Wallet",
 				"api": "http://volbil.com/mbc/api/test/",
 				"name": "Test Network (MBC)",
@@ -39,7 +39,16 @@
 					"standard": 0x47,
 					"multisig": 0x49
 				}
-			} */
+			}
+			// Explorer links
+			var blockExplorer = {
+				"address": function(address) {
+					return "https://microbitcoinorg.github.io/explorer/#/address/" + address + "/" + walletConfig.ticker 
+				},
+				"tx": function(tx) {
+					return "https://microbitcoinorg.github.io/explorer/#/tx/" + tx + "/" + walletConfig.ticker 
+				}
+			}
 		</script>
 		
 		<script>
@@ -3024,7 +3033,7 @@
 					block: null
 				};
 
-				tx.add_input = function(txid, idx, script) {
+				tx.add_input = function(txid, idx, script, amount) {
 					var o = {
 						outpoint: {
 							'hash': txid,
@@ -3033,6 +3042,10 @@
 						// sequence: 4294967295
 						sequence: 0
 					};
+
+					if (amount) {
+						o.value = new BigInteger('' + amount, 10);
+					}
 
 					o.script = backend.new_script(script || '');
 
@@ -3056,7 +3069,7 @@
 					for (var i = 0; i < u.length; i++) {
 						if (u[i].script.indexOf("76a914") != 0) continue; // only pay-to-pkhash
 
-						this.add_input(u[i].tx_hash, u[i].tx_pos, u[i].script);
+						this.add_input(u[i].tx_hash, u[i].tx_pos, u[i].script, u[i].value);
 
 						total += u[i].value;
 					}
@@ -3065,7 +3078,7 @@
 				};
 
 				tx.transaction_hash = function(idx) { // not txid!
-					var b = this.serialize(idx).concat(backend.n2bytes(0x01 | 0xb8, 4)); // signature type: 0x40 = SIGHASH_FORKID for MBC
+					var b = this.serialize(idx).concat(backend.n2bytes(0x01 | 0xb8, 4)); // signature type: 0xb8 = SIGHASH_FORKID for MBC
 
 					return SHA256(SHA256(b));
 				};
@@ -3156,8 +3169,7 @@
 					return backend.bin2hex(this.serialize());
 				};
 
-				tx.serialize = function(idx) // 'idx' is only used internally to get tx hash
-				{
+				tx.serialize = function(idx) { // 'idx' is only used internally to get tx hash
 					if (typeof idx === 'undefined') idx = -1;
 
 					var b = backend.n2bytes(1, 4); // version
@@ -3243,23 +3255,13 @@
 				}
 			}
 
-			// Explorer
-			var blockExplorer = {
-				"address": function(address) {
-					return "https://microbitcoinorg.github.io/explorer/#/address/" + address + "/" + walletConfig.ticker 
-				},
-				"tx": function(tx) {
-					return "https://microbitcoinorg.github.io/explorer/#/tx/" + tx + "/" + walletConfig.ticker 
-				}
-			}
-
 			// Show big error message at the top of the page :D 
 			function showMessage(message) {
 				$("#error-message").text(message)
 				$("#error-message").removeClass("d-none")
 				setTimeout(function() {
 					$("#error-message").addClass("d-none")
-				}, 2700);
+				}, 3000);
 			}
 
 			// Switch screen
@@ -3336,7 +3338,7 @@
 
 				window.setInterval(function() {
 					displayBalance()
-				}, 7000);
+				}, 30000);
 			
 			}
 
@@ -3357,7 +3359,6 @@
 				var error = ""
 
 				// Errors
-				if ((globalData.balance.confirmed - globalData.balance.unconfirmed) < globalData.tx.amount + globalData.tx.fee) error = messages.error["not-enough-funds"]
 				if (globalData.tx.destination == "" || backend.decode_address(globalData.tx.destination) === false) error = messages.error["not-valid-address"]
 				if (globalData.tx.destination === globalData.keys.address) error = messages.error["same-address"]
 				if (isNaN(globalData.tx.amount) || globalData.tx.amount <= 0) error = messages.error["not-valid-amount"]
@@ -3386,7 +3387,7 @@
 					showMessage(messages.tx["loading-utxo"])
 					getUtxoForAmount(address, requiredAmount).then(function(utxos) {
 						if (utxos.error) {
-							showMessage(messages.error["not-enough-funds"])
+							showMessage(utxos.data.error.code + ": " + utxos.data.error.message)
 							switchScreen("send")
 						} else {
 							showMessage(messages.tx["generating"])
@@ -3406,15 +3407,14 @@
 								rawtx = tx.sign(globalData.keys)
 								txid = tx.txid()
 
+								console.log(rawtx)
+
 								broadcastTx(rawtx).then(function(result) {
-									console.log(1)
 									if (result.error == false && result.data == txid) {
-										console.log(2)
 										$("#success-screen a").attr("href", blockExplorer.tx(txid))
 										$("#success-screen a").text(txid)
 										switchScreen("success")
 									} else {
-										console.log(3)
 										showMessage(messages.error["broadcast-failed"])
 										switchScreen("send")
 									}
@@ -3453,10 +3453,11 @@
 			}
 
 			// Make request :D
-			function makeRequest(data, error_check = true) {
+			function makeRequest(data, method = "GET", error_check = true) {
 				return Promise.resolve($.ajax({
-					url: walletConfig.api,
-					data: data
+					"method": method,
+					"url": walletConfig.api,
+					"data": data
 				})).then(function(data) {
 					if (error_check) {
 						result = {
@@ -3487,7 +3488,7 @@
 
 			// Broadcast transaction
 			function broadcastTx(rawtx) {
-				return makeRequest({method: "blockchain.transaction.broadcast", params: [rawtx]})
+				return makeRequest({method: "blockchain.transaction.broadcast", params: [rawtx]}, "POST")
 			}
 
 			// Display address balance
