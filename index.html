@@ -25,7 +25,8 @@
 				"bytes": {
 					"standard": 0x47,
 					"multisig": 0x49
-				}
+				},
+				"forkid": 0xb8
 			}
 
 			// Main network
@@ -2567,6 +2568,10 @@
 				display: flex;
 				-ms-flex-align: center;
 				align-items: center;
+				/*background: url(https://microbitcoin.org/img/bg_2.png);
+			    background-size: auto auto;
+				background-size: cover;
+				background-position: bottom;*/
 			}
 			[class*="entypo"]:before {
 				font-family: 'EntypoRegular', sans-serif;
@@ -2590,6 +2595,9 @@
 	<body>
 		<div class="container">
 			<div class="row justify-content-center">
+				<div class="col-12 text-center mb-2">
+					<img style="max-width: 300px;" src="https://microbitcoinorg.github.io/misc/logo-long.png" alt="MicroBitcoin Logo">
+				</div>
 				<div class="col-md-8 col-sm-12 col-xs-12">
 					<div class="card">
 						<div class="card-header">
@@ -2707,6 +2715,10 @@
 			var backend = {};
 			var tx = {};
 
+			function sha256d(value) {
+				return SHA256(SHA256(value))
+			}
+
 			backend.bin2hex = function(b) {
 				for (var h = [], i = 0; i < b.length; i++) {
 					h.push((b[i] >>> 4).toString(16));
@@ -2818,7 +2830,7 @@
 
 				r.unshift(walletConfig.bytes.standard);
 
-				var checksum = SHA256(SHA256(r)).slice(0, 4);
+				var checksum = sha256d(r).slice(0, 4);
 
 				return this.base58_encode(r.concat(checksum));
 			};
@@ -2830,7 +2842,7 @@
 					r = r.concat([0x01]);
 				}
 
-				var checksum = SHA256(SHA256(r)).slice(0, 4);
+				var checksum = sha256d(r).slice(0, 4);
 
 				return this.base58_encode(r.concat(checksum));
 			};
@@ -2849,7 +2861,7 @@
 					var back = bytes.slice(len - 4);
 
 					var ver = front[0],
-						checksum = SHA256(SHA256(front)).slice(0, 4);
+						checksum = sha256d(front).slice(0, 4);
 
 					var a = {
 						version: ver,
@@ -3081,9 +3093,9 @@
 				};
 
 				tx.transaction_hash = function(idx) { // not txid!
-					var b = this.serialize(idx).concat(backend.n2bytes(0x01 | 0xb8, 4)); // signature type: 0xb8 = SIGHASH_FORKID for MBC
+					var b = this.serialize(idx).concat(backend.n2bytes(0x01 | walletConfig.forkid, 4)); // signature type - SIGHASH_FORKID for MBC
 
-					return SHA256(SHA256(b));
+					return sha256d(b);
 				};
 
 				// bad_rs is used only if the k resulted in bad r or s
@@ -3153,7 +3165,7 @@
 						s = n.subtract(s); // Force lower s values per BIP62
 					}
 
-					return serialize_sig(r,s).concat([1 | 0xb8]); // MicroBitcoin type
+					return serialize_sig(r,s).concat([1 | walletConfig.forkid]); // MicroBitcoin type
 				};
 
 				tx.sign = function(keys) { // replaces tx inputs!
@@ -3170,121 +3182,36 @@
 					return backend.bin2hex(this.serialize());
 				};
 
-				tx._get_prevouts = function() {
-					var b = [];
-
-					for(var i = 0; i < this.ins.length; i++)
-					{
-						var t = this.ins[i];
-
-						b = b.concat(backend.hex2bin(t.outpoint.hash).reverse());
-						b = b.concat(backend.n2bytes(t.outpoint.index, 4));
-					}
-
-					return b;
-				};
-	
-				tx._get_sequences = function() {
-					var b = [];
-
-					for(var i = 0; i < this.ins.length; i++)
-					{
-						b = b.concat(backend.n2bytes(this.ins[i].sequence, 4));
-					}
-
-					return b;
-				};
-	
-				tx._get_outputs = function() {
-					var b = [];
-
-					for(var i = 0; i < this.outs.length; i++)
-					{
-						var t = this.outs[i];
-
-						b = b.concat(backend.n2bytes(t.value, 8));
-
-						b = b.concat(backend.n2vint(t.script.buffer.length), t.script.buffer);
-					}
-
-					return b;
-				};
-
 				tx.serialize = function(idx) { // 'idx' is only used internally to get tx hash
+					if (typeof idx === 'undefined') idx = -1;
+
 					var b = backend.n2bytes(1, 4); // version
 
-					if(idx == undefined)
-					{
-						b = b.concat(backend.n2vint(this.ins.length));
-				
-						for(var i = 0; i < this.ins.length; i++)
-						{
-							var t = this.ins[i];
-				
-							b = b.concat(backend.hex2bin(t.outpoint.hash).reverse(), backend.n2bytes(t.outpoint.index, 4));
-							b = b.concat(backend.n2vint(t.script.buffer.length), t.script.buffer);
-							b = b.concat(backend.n2bytes(t.sequence, 4));
-						}
-				
-						b = b.concat(backend.n2vint(this.outs.length));
-				
-						for(var i = 0; i < this.outs.length; i++)
-						{
-							var t = this.outs[i];
-							
-							b = b.concat(backend.n2bytes(t.value, 8), backend.n2vint(t.script.buffer.length), t.script.buffer);
-						}
-					}
-					else // serialization for transaction hash
-					{
-						var t = this.ins[idx];
+					b = b.concat(backend.n2vint(this.ins.length));
 
-						b = b.concat(SHA256(SHA256(this._get_prevouts())));
-						b = b.concat(SHA256(SHA256(this._get_sequences())));
-				
+					for (var i = 0; i < this.ins.length; i++) {
+						var t = this.ins[i];
+
 						b = b.concat(backend.hex2bin(t.outpoint.hash).reverse(), backend.n2bytes(t.outpoint.index, 4));
-						b = b.concat(backend.n2vint(t.script.buffer.length), t.script.buffer);
-						b = b.concat(backend.n2bytes(t.value,    8));
-						b = b.concat(backend.n2bytes(t.sequence, 4));
 
-						b = b.concat(SHA256(SHA256(this._get_outputs())));
+						if (idx >= 0 && idx != i) b.push(0);
+						else b = b.concat(backend.n2vint(t.script.buffer.length), t.script.buffer);
+
+						b = b.concat(backend.n2bytes(t.sequence, 4));
+					}
+
+					b = b.concat(backend.n2vint(this.outs.length));
+
+					for (var i = 0; i < this.outs.length; i++) {
+						var t = this.outs[i];
+
+						b = b.concat(backend.n2bytes(t.value, 8), backend.n2vint(t.script.buffer.length), t.script.buffer);
 					}
 
 					b = b.concat(backend.n2bytes(0, 4)); // lock time
 
 					return b;
 				};
-
-				// tx.serialize = function(idx) { // 'idx' is only used internally to get tx hash
-				// 	if (typeof idx === 'undefined') idx = -1;
-
-				// 	var b = backend.n2bytes(1, 4); // version
-
-				// 	b = b.concat(backend.n2vint(this.ins.length));
-
-				// 	for (var i = 0; i < this.ins.length; i++) {
-				// 		var t = this.ins[i];
-
-				// 		b = b.concat(backend.hex2bin(t.outpoint.hash).reverse(), backend.n2bytes(t.outpoint.index, 4));
-
-				// 		if (idx >= 0 && idx != i) b.push(0);
-				// 		else b = b.concat(backend.n2vint(t.script.buffer.length), t.script.buffer);
-
-				// 		b = b.concat(backend.n2bytes(t.sequence, 4));
-				// 	}
-
-				// 	b = b.concat(backend.n2vint(this.outs.length));
-
-				// 	for (var i = 0; i < this.outs.length; i++) {
-				// 		var t = this.outs[i];
-
-				// 		b = b.concat(backend.n2bytes(t.value, 8), backend.n2vint(t.script.buffer.length), t.script.buffer);
-				// 	}
-
-				// 	b = b.concat(backend.n2bytes(0, 4)); // lock time
-
-				// 	return b;
-				// };
 
 				tx.estimate_size = function() {
 					var size = 4 + 1 + 1 + 4;
@@ -3300,7 +3227,7 @@
 				};
 
 				tx.txid = function() {
-					return backend.bin2hex(SHA256(SHA256(this.serialize())).reverse());
+					return backend.bin2hex(sha256d(this.serialize())).reverse();
 				};
 
 				return tx;
@@ -3495,16 +3422,16 @@
 
 								console.log(rawtx)
 
-								broadcastTx(rawtx).then(function(result) {
-									if (result.error == false && result.data == txid) {
-										$("#success-screen a").attr("href", blockExplorer.tx(txid))
-										$("#success-screen a").text(txid)
-										switchScreen("success")
-									} else {
-										showMessage(messages.error["broadcast-failed"])
-										switchScreen("send")
-									}
-								})
+								// broadcastTx(rawtx).then(function(result) {
+								// 	if (result.error == false && result.data == txid) {
+								// 		$("#success-screen a").attr("href", blockExplorer.tx(txid))
+								// 		$("#success-screen a").text(txid)
+								// 		switchScreen("success")
+								// 	} else {
+								// 		showMessage(messages.error["broadcast-failed"])
+								// 		switchScreen("send")
+								// 	}
+								// })
 				
 							} else {
 								showMessage(messages.error["not-enough-utxo"])
