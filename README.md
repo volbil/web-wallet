@@ -7,6 +7,8 @@ Feel free to modify/use it in your projects :D
 - (Signature must be zero for failed CHECK(MULTI)SIG operation) bug fix
 - Network switching
 - Redesing
+- Segwit support
 
 P.s. Working example [http://explorer.volbil.com/wallet](http://explorer.volbil.com/wallet)  
 P.s.s This wallet heavily based on NxtChg [tswb](http://github.com/NxtChg/tsbw/), check out his awesome github!
+P.s.s.s. Work on this wallet is stopped for some time, but you can feel free to take and modify it :)
