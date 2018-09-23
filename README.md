@@ -4,9 +4,7 @@ Nice and simple web wallet based on slightly modified [ElectrumX](https://github
 Feel free to modify/use it in your projects :D
 
 ## TO DO
-- (Signature must be zero for failed CHECK(MULTI)SIG operation) bug fix
 - Network switching
-- Redesing
 - Segwit support
 
 P.s. Working example [http://explorer.volbil.com/wallet](http://explorer.volbil.com/wallet)  
