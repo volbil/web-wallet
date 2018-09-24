@@ -506,6 +506,7 @@
 				"address": "",
 				"segwit": true,
 				"balance": 0,
+				"rfee": 0,
 				"tx": {
 					"amount": 0,
 					"outputs": [],
@@ -714,9 +715,9 @@
 				return makeRequest({method: "blockchain.transaction.broadcast", params: [rawtx]}, "POST")
 			}
 
-			// Get current network info
-			function networkInfo() {
-				return makeRequest({method: "getinfo"}, "GET", false)
+			// Estimate fee
+			function estimateFee() {
+				return makeRequest({method: "blockchain.estimatesmartfee"}, "POST")
 			}
 
 			// Make request :D
@@ -2832,7 +2833,7 @@
 				$("#open-block").addClass("d-none")
 				$("#wallet-block").removeClass("d-none")
 				$("#history-link").attr("href", "" + blockExplorer.address(globalData.address))
-				$("#send-fee").attr("placeholder", "Fee (default " + getApi()["fee"] + ")")
+				$("#send-fee").attr("placeholder", "Fee (recommended " + globalData.rfee + " " + getApi()["ticker"] +")")
 				showQrAddress("microbitcoin:" + globalData.address)
 
 				walletBalance()
@@ -2856,7 +2857,7 @@
 					})
 				})
 
-				globalData.tx.fee = amountFormat(($("#send-fee").val() != "") ? $("#send-fee").val() : getApi()["fee"], true)
+				globalData.tx.fee = amountFormat(($("#send-fee").val() != "") ? $("#send-fee").val() : globalData.rfee, true)
 				globalData.tx.amount = amountFormat(amount, true)
 			}
 
@@ -2960,7 +2961,7 @@
 
 				$("#send-tx").click(function() {
 					var error = false
-					var txFee = ($("#send-fee").val() != "") ? $("#send-fee").val() : getApi()["fee"]
+					var txFee = ($("#send-fee").val() != "") ? $("#send-fee").val() : globalData.rfee
 					var total = 0
 
 					if ((isNaN(txFee)) || txFee <= 0) {
@@ -3006,13 +3007,13 @@
 				$("#open-key-form").submit(function(e){
 					var wif = $("#passphrase").val()
 					if (coinjs.wif2privkey(wif).privkey != "") {
-						globalData.keys = coinjs.getKeys(wif);
+						globalData.keys = coinjs.getKeys(wif)
+						$("#passphrase").val("")
 						openWallet(globalData.keys, false)
 					} else {
 						showMessage(messages.error["bad-priv-key"])
 					}
 
-					$("#passphrase").val("")
 					e.preventDefault()
 				})
 
@@ -3037,9 +3038,12 @@
 									s = Crypto.SHA256(s);
 								}
 
+								$("#open-email").val("")
+								$("#open-password").val("")
+								$("#open-password-confirm").val("")
+
 								globalData.keys = coinjs.newKeys(s)
 								openWallet(globalData.keys)
-								
 							} else {
 								showMessage(messages.error["pass-not-match"])
 							}
@@ -3050,9 +3054,6 @@
 						showMessage(messages.error["bad-email"])
 					}
 
-					$("#open-email").val("")
-					$("#open-password").val("")
-					$("#open-password-confirm").val("")
 					e.preventDefault()
 				})
 
@@ -3108,6 +3109,14 @@
 				$(".address-type-switch").click(function(e) {
 					openWallet(globalData.keys, $(this).data("address-type") == "segwit")
 					e.preventDefault()
+				})
+
+				estimateFee().then(function(data){
+					if (data.error == false) {
+						globalData.rfee = data.data.feerate
+					} else {
+						globalData.rfee = getApi()["fee"]
+					}
 				})
 
 				/* capture mouse movement to add entropy */
