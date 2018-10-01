@@ -421,7 +421,7 @@
 			<div class="modal-dialog modal-md" role="document">
 				<div class="modal-content">
 					<div class="modal-header">
-						<h5 class="modal-title">Are you sure?</h5>
+						<h5 id="send-title" class="modal-title"></h5>
 						<button id="send-close" type="button" class="close" data-dismiss="modal" aria-label="Close">
 							<span aria-hidden="true">&times;</span>
 						</button>
@@ -547,6 +547,12 @@
 				"tx": {
 					"loading-utxo": "Loading UTXOs...",
 					"generating": "Generating transaction..."
+				},
+				"title": {
+					"sure": "Are you sure?",
+					"processing": "Processing...",
+					"success": "Success",
+					"failed": "Failed"
 				}
 			}
 
@@ -2844,6 +2850,7 @@
 			function showConfirmation(amount) {
 				$("#confirm-amount").text(amount + " " + getApi()["ticker"])
 				$('#send-modal').modal('toggle')
+				$('#send-title').text(messages.title["sure"])
 				$("#send-cancel").removeClass("disabled")
 				$("#send-confirm").removeClass("disabled")
 				$("#confirm-screen").removeClass("d-none")
@@ -2875,6 +2882,7 @@
 				$("#send-confirm").addClass("disabled")
 				$("#confirm-screen").addClass("d-none")
 				$("#status-screen").removeClass("d-none")
+				$('#send-title').text(messages.title["processing"])
 
 				$("#status-screen span").html(messages.tx["generating"])
 				if (globalData.segwit) { script = coinjs.segwitAddress(globalData.keys.pubkey)["redeemscript"] }
@@ -2901,10 +2909,12 @@
 						txClone.broadcast(signed).then(function(data) {
 							if (!data.error) {
 								$("#status-screen span").html(`
-									<a href="` + blockExplorer.tx(data.data) + `">` + data.data + `</a> 
+									<a href="` + blockExplorer.tx(data.data) + `" target="_blank">` + data.data + `</a> 
 								`)
+								$('#send-title').text(messages.title["success"])
 							} else {
 								$("#status-screen span").html(messages.error["broadcast-failed"])
+								$('#send-title').text(messages.title["failed"])
 							}
 							resetTxForm()
 						})
