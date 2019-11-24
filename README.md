@@ -6,5 +6,5 @@ Feel free to modify/use it in your projects :D
 ## TO DO
 - Bring stuffs from coinbin
 
-P.s. Working example [http://explorer.volbil.com/wallet](http://explorer.volbil.com/wallet)  
+P.s. Working example [https://microbitcoinorg.github.io/explorer/](https://microbitcoinorg.github.io/explorer/)  
 P.s.s This wallet heavily based on OutCast3k [coinbin](http://github.com/OutCast3k/coinbin), check out his awesome github!
